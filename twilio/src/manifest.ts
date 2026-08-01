@@ -58,14 +58,10 @@ export const manifest =
             minimum: 120000,
             title: "Verification code lifetime",
           }),
-          verifyServiceSid: Type.String({
-            description: "Twilio Verify Service SID.",
-            title: "Verify Service SID",
-          }),
         }),
         title: "Twilio Verify",
         wiring: {
-          code: "createTwilioVerificationProvider({ client: new Twilio(${env.TWILIO_ACCOUNT_SID}, ${env.TWILIO_AUTH_TOKEN}), verifyServiceSid: ${env.TWILIO_VERIFY_SERVICE_SID}, ...${settings} })",
+          code: "createTwilioVerificationProvider({ profile: { client: new Twilio(${env.TWILIO_ACCOUNT_SID}, ${env.TWILIO_AUTH_TOKEN}), verifyServiceSid: ${env.TWILIO_VERIFY_SERVICE_SID} }, ...${settings} })",
           imports: [
             {
               from: "@absolutejs/auth-twilio",

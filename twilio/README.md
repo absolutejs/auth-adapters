@@ -29,8 +29,10 @@ const client = new Twilio(
 const authPlugin = await auth({
   // credentials, mfa, stores, providersConfiguration, etc.
   verificationProvider: createTwilioVerificationProvider({
-    client,
-    verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID!,
+    profile: {
+      client,
+      verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID!,
+    },
     // Must match the token lifetime configured on the Verify Service.
     serviceTokenTtlMs: 10 * 60 * 1000,
   }),
@@ -41,19 +43,19 @@ Optional per-purpose templates keep enrollment and login copy distinct:
 
 ```ts
 createTwilioVerificationProvider({
-  client,
-  verifyServiceSid,
+  profile: { client, verifyServiceSid },
   serviceTokenTtlMs: 600_000,
   templates: {
-    mfa_enrollment: "HJ...",
-    mfa_challenge: "HJ...",
+    mfa_enrollment: { sms: "HJ...", whatsapp: "HJ..." },
+    mfa_challenge: { call: "HJ...", sms: "HJ..." },
   },
 });
 ```
 
 The adapter supports SMS, WhatsApp, and voice-call OTP channels, locale,
-rate-limit buckets, and tenant-to-Verify-Service routing. It always enables
-Twilio's risk check. By default tags contain only the purpose; `buildTags` is an
+rate-limit buckets, and tenant-to-account/Verify-Service routing. Twilio's
+Fraud Guard risk check is enabled only for SMS, the channel Twilio supports it
+on. By default tags contain only the purpose; `buildTags` is an
 explicit opt-in and should never return direct personal data. Unknown Verify
 statuses fail closed.
 

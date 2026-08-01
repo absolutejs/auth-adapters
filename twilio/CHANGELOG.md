@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] — 2026-08-01
+
+- Route tenants through an isolated client-and-Service profile instead of a Service SID alone.
+- Scope templates by both verification purpose and delivery channel.
+- Send Fraud Guard `riskCheck` only for SMS, where Twilio Verify supports it.
+
 ## [0.2.0] — 2026-08-01
 
 - Add SMS, WhatsApp, and voice-call verification channels.

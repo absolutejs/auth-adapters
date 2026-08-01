@@ -37,7 +37,7 @@ export type TwilioVerifyClientLike = {
             channel: VerificationChannel;
             locale?: string;
             rateLimits?: Record<string, string>;
-            riskCheck: "enable";
+            riskCheck?: "enable";
             tags: string;
             templateSid?: string;
             to: string;
@@ -52,16 +52,24 @@ export type TwilioVerifyClientLike = {
 };
 
 export type CreateTwilioVerificationProviderOptions = {
-  client: TwilioVerifyClientLike;
+  /** Default account-isolated Verify client and Service. */
+  profile: TwilioVerificationProfile;
   /** Must match the token validity configured on the Twilio Verify Service. */
   serviceTokenTtlMs: number;
   /** Explicitly opt in to provider tags. The auth subject is never sent by default. */
   buildTags?: (input: VerificationStartInput) => Record<string, string>;
-  /** Route tenants to isolated Verify Services without rebuilding the provider. */
-  resolveVerifyServiceSid?: (
+  /** Route tenants to isolated clients and Verify Services. */
+  resolveProfile?: (
     input: VerificationStartInput,
-  ) => Promise<string> | string;
-  templates?: Partial<Record<VerificationPurpose, string>>;
+  ) => Promise<TwilioVerificationProfile> | TwilioVerificationProfile;
+  /** Templates are purpose-and-channel specific; accidental cross-channel reuse is blocked. */
+  templates?: Partial<
+    Record<VerificationPurpose, Partial<Record<VerificationChannel, string>>>
+  >;
+};
+
+export type TwilioVerificationProfile = {
+  client: TwilioVerifyClientLike;
   verifyServiceSid: string;
 };
 
@@ -100,7 +108,7 @@ const providerError = (error: unknown) => {
 };
 
 const validateOptions = (options: CreateTwilioVerificationProviderOptions) => {
-  if (!VERIFY_SERVICE_SID.test(options.verifyServiceSid)) {
+  if (!VERIFY_SERVICE_SID.test(options.profile.verifyServiceSid)) {
     throw new TwilioVerificationConfigurationError(
       "verifyServiceSid must be a Twilio Verify Service SID (VA followed by 32 hexadecimal characters)",
     );
@@ -114,11 +122,13 @@ const validateOptions = (options: CreateTwilioVerificationProviderOptions) => {
       "serviceTokenTtlMs must be an integer between 120000 and 86400000",
     );
   }
-  for (const templateSid of Object.values(options.templates ?? {})) {
-    if (templateSid !== undefined && !TEMPLATE_SID.test(templateSid)) {
-      throw new TwilioVerificationConfigurationError(
-        "template SIDs must start with HJ and contain 32 hexadecimal characters",
-      );
+  for (const channels of Object.values(options.templates ?? {})) {
+    for (const templateSid of Object.values(channels ?? {})) {
+      if (templateSid !== undefined && !TEMPLATE_SID.test(templateSid)) {
+        throw new TwilioVerificationConfigurationError(
+          "template SIDs must start with HJ and contain 32 hexadecimal characters",
+        );
+      }
     }
   }
 };
@@ -161,16 +171,16 @@ export const createTwilioVerificationProvider = (
 ): VerificationProvider => {
   validateOptions(options);
   const resolveService = async (input: VerificationStartInput) => {
-    const serviceSid = options.resolveVerifyServiceSid
-      ? await options.resolveVerifyServiceSid(input)
-      : options.verifyServiceSid;
-    if (!VERIFY_SERVICE_SID.test(serviceSid)) {
+    const profile = options.resolveProfile
+      ? await options.resolveProfile(input)
+      : options.profile;
+    if (!VERIFY_SERVICE_SID.test(profile.verifyServiceSid)) {
       throw new TwilioVerificationConfigurationError(
         "resolved Verify Service SID must start with VA and contain 32 hexadecimal characters",
       );
     }
 
-    return options.client.verify.v2.services(serviceSid);
+    return profile.client.verify.v2.services(profile.verifyServiceSid);
   };
 
   return {
@@ -190,7 +200,7 @@ export const createTwilioVerificationProvider = (
     },
     start: async (input) => {
       validateInput(input);
-      const templateSid = options.templates?.[input.purpose];
+      const templateSid = options.templates?.[input.purpose]?.[input.channel];
       let response;
       try {
         const service = await resolveService(input);
@@ -200,7 +210,7 @@ export const createTwilioVerificationProvider = (
           ...(input.rateLimits === undefined
             ? {}
             : { rateLimits: { ...input.rateLimits } }),
-          riskCheck: "enable",
+          ...(input.channel === "sms" ? { riskCheck: "enable" as const } : {}),
           tags: JSON.stringify(
             options.buildTags?.(input) ?? { purpose: input.purpose },
           ),

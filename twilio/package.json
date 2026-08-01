@@ -1,6 +1,6 @@
 {
   "name": "@absolutejs/auth-twilio",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Twilio Verify provider for @absolutejs/auth MFA challenges.",
   "repository": {
     "type": "git",

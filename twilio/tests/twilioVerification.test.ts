@@ -87,10 +87,9 @@ describe("createTwilioVerificationProvider", () => {
   test("starts a risk-checked verification without leaking the auth subject", async () => {
     const mock = createClient();
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      templates: { mfa_challenge: TEMPLATE_SID },
-      verifyServiceSid: VERIFY_SID,
+      templates: { mfa_challenge: { sms: TEMPLATE_SID } },
     });
     const before = Date.now();
     const result = await provider.start(input);
@@ -112,11 +111,13 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     const tenantServiceSid = `VA${"4".repeat(32)}`;
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
-      resolveVerifyServiceSid: (request) =>
-        request.tenant === "tenant-2" ? tenantServiceSid : VERIFY_SID,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
+      resolveProfile: (request) => ({
+        client: mock.client,
+        verifyServiceSid:
+          request.tenant === "tenant-2" ? tenantServiceSid : VERIFY_SID,
+      }),
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     const request = {
       ...input,
@@ -132,6 +133,7 @@ describe("createTwilioVerificationProvider", () => {
       locale: "es",
       rateLimits: { ip_hash: "opaque-value" },
     });
+    expect(mock.starts[0]).not.toHaveProperty("riskCheck");
     expect(mock.cancels).toEqual([
       { status: "canceled", verificationSid: VERIFICATION_SID },
     ]);
@@ -148,9 +150,8 @@ describe("createTwilioVerificationProvider", () => {
       const mock = createClient();
       mock.setCheckStatus(providerStatus);
       const provider = createTwilioVerificationProvider({
-        client: mock.client,
+        profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
         serviceTokenTtlMs: 600_000,
-        verifyServiceSid: VERIFY_SID,
       });
       expect(
         (
@@ -171,9 +172,8 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     mock.setCheckStatus("new_status");
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     await expect(
       provider.check({
@@ -188,9 +188,8 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     mock.setStartStatus("failed");
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     await expect(provider.start(input)).rejects.toBeInstanceOf(
       TwilioVerificationResponseError,
@@ -201,9 +200,8 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     mock.setStartSid(undefined);
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     await expect(provider.start(input)).rejects.toBeInstanceOf(
       TwilioVerificationResponseError,
@@ -213,9 +211,8 @@ describe("createTwilioVerificationProvider", () => {
   test("rejects a check that is not bound to a Twilio verification SID", async () => {
     const mock = createClient();
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     await expect(
       provider.check({ ...input, code: "123456", reference: "bad" }),
@@ -231,9 +228,8 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     mock.setStartError({ code });
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     try {
       await provider.start(input);
@@ -251,9 +247,8 @@ describe("createTwilioVerificationProvider", () => {
     const mock = createClient();
     mock.setCheckError({ code });
     const provider = createTwilioVerificationProvider({
-      client: mock.client,
+      profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
       serviceTokenTtlMs: 600_000,
-      verifyServiceSid: VERIFY_SID,
     });
     expect(
       (
@@ -268,15 +263,14 @@ describe("createTwilioVerificationProvider", () => {
 
   test.each([
     { serviceTokenTtlMs: 1 },
-    { verifyServiceSid: "VA_bad" },
-    { templates: { mfa_enrollment: "HJ_bad" } },
+    { profile: { client: createClient().client, verifyServiceSid: "VA_bad" } },
+    { templates: { mfa_enrollment: { sms: "HJ_bad" } } },
   ])("rejects invalid configuration", (changed) => {
     const mock = createClient();
     expect(() =>
       createTwilioVerificationProvider({
-        client: mock.client,
+        profile: { client: mock.client, verifyServiceSid: VERIFY_SID },
         serviceTokenTtlMs: 600_000,
-        verifyServiceSid: VERIFY_SID,
         ...changed,
       }),
     ).toThrow(TwilioVerificationConfigurationError);
