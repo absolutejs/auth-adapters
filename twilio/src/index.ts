@@ -1,6 +1,7 @@
 import {
   VerificationProviderError,
   type VerificationCheckResult,
+  type VerificationChannel,
   type VerificationProvider,
   type VerificationPurpose,
   type VerificationStartInput,
@@ -29,8 +30,13 @@ export type TwilioVerifyClientLike = {
           }>;
         };
         verifications: {
+          (verificationSid: string): {
+            update: (input: { status: "canceled" }) => Promise<unknown>;
+          };
           create: (input: {
-            channel: "sms";
+            channel: VerificationChannel;
+            locale?: string;
+            rateLimits?: Record<string, string>;
             riskCheck: "enable";
             tags: string;
             templateSid?: string;
@@ -49,6 +55,12 @@ export type CreateTwilioVerificationProviderOptions = {
   client: TwilioVerifyClientLike;
   /** Must match the token validity configured on the Twilio Verify Service. */
   serviceTokenTtlMs: number;
+  /** Explicitly opt in to provider tags. The auth subject is never sent by default. */
+  buildTags?: (input: VerificationStartInput) => Record<string, string>;
+  /** Route tenants to isolated Verify Services without rebuilding the provider. */
+  resolveVerifyServiceSid?: (
+    input: VerificationStartInput,
+  ) => Promise<string> | string;
   templates?: Partial<Record<VerificationPurpose, string>>;
   verifyServiceSid: string;
 };
@@ -112,11 +124,6 @@ const validateOptions = (options: CreateTwilioVerificationProviderOptions) => {
 };
 
 const validateInput = (input: VerificationStartInput) => {
-  if (input.channel !== "sms") {
-    throw new TwilioVerificationConfigurationError(
-      "@absolutejs/auth-twilio currently supports the SMS verification channel",
-    );
-  }
   if (!E164.test(input.to)) {
     throw new TwilioVerificationConfigurationError(
       "verification destination must be an E.164 phone number",
@@ -153,22 +160,50 @@ export const createTwilioVerificationProvider = (
   options: CreateTwilioVerificationProviderOptions,
 ): VerificationProvider => {
   validateOptions(options);
-  const service = options.client.verify.v2.services(options.verifyServiceSid);
+  const resolveService = async (input: VerificationStartInput) => {
+    const serviceSid = options.resolveVerifyServiceSid
+      ? await options.resolveVerifyServiceSid(input)
+      : options.verifyServiceSid;
+    if (!VERIFY_SERVICE_SID.test(serviceSid)) {
+      throw new TwilioVerificationConfigurationError(
+        "resolved Verify Service SID must start with VA and contain 32 hexadecimal characters",
+      );
+    }
+
+    return options.client.verify.v2.services(serviceSid);
+  };
 
   return {
     name: "twilio-verify",
+    cancel: async (input) => {
+      validateInput(input);
+      validateReference(input.reference);
+      try {
+        const service = await resolveService(input);
+        await service.verifications(input.reference).update({
+          status: "canceled",
+        });
+      } catch (error) {
+        if (error instanceof TwilioVerificationConfigurationError) throw error;
+        throw providerError(error);
+      }
+    },
     start: async (input) => {
       validateInput(input);
       const templateSid = options.templates?.[input.purpose];
       let response;
       try {
+        const service = await resolveService(input);
         response = await service.verifications.create({
-          channel: "sms",
+          channel: input.channel,
+          ...(input.locale === undefined ? {} : { locale: input.locale }),
+          ...(input.rateLimits === undefined
+            ? {}
+            : { rateLimits: { ...input.rateLimits } }),
           riskCheck: "enable",
-          tags: JSON.stringify({
-            purpose: input.purpose,
-            subject: input.subject,
-          }),
+          tags: JSON.stringify(
+            options.buildTags?.(input) ?? { purpose: input.purpose },
+          ),
           ...(templateSid === undefined ? {} : { templateSid }),
           to: input.to,
         });
@@ -195,6 +230,7 @@ export const createTwilioVerificationProvider = (
       validateReference(input.reference);
       let response;
       try {
+        const service = await resolveService(input);
         response = await service.verificationChecks.create({
           code: input.code,
           verificationSid: input.reference,

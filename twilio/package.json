@@ -1,6 +1,6 @@
 {
   "name": "@absolutejs/auth-twilio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Twilio Verify provider for @absolutejs/auth MFA challenges.",
   "repository": {
     "type": "git",
@@ -38,11 +38,11 @@
     "release": "bun run check:package && npm publish --access public"
   },
   "peerDependencies": {
-    "@absolutejs/auth": ">=0.58.0 <0.59",
+    "@absolutejs/auth": ">=0.59.0 <0.60",
     "twilio": ">=6.0.0 <7"
   },
   "devDependencies": {
-    "@absolutejs/auth": "0.58.0",
+    "@absolutejs/auth": "0.59.2",
     "@types/bun": "1.3.14",
     "prettier": "3.8.1",
     "twilio": "6.0.2",
@@ -79,8 +79,8 @@
           "@absolutejs/auth/*"
         ],
         "optional": false,
-        "range": ">=0.58.0 <0.59",
-        "tested": "0.58.0"
+        "range": ">=0.59.0 <0.60",
+        "tested": "0.59.2"
       },
       "twilio": {
         "artifactImports": [],

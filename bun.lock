@@ -7,26 +7,26 @@
     },
     "twilio": {
       "name": "@absolutejs/auth-twilio",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@absolutejs/manifest": "0.7.2",
         "@sinclair/typebox": "^0.34.0",
       },
       "devDependencies": {
-        "@absolutejs/auth": "0.58.0",
+        "@absolutejs/auth": "0.59.2",
         "@types/bun": "1.3.14",
         "prettier": "3.8.1",
         "twilio": "6.0.2",
         "typescript": "5.8.3",
       },
       "peerDependencies": {
-        "@absolutejs/auth": ">=0.58.0 <0.59",
+        "@absolutejs/auth": ">=0.59.0 <0.60",
         "twilio": ">=6.0.0 <7",
       },
     },
   },
   "packages": {
-    "@absolutejs/auth": ["@absolutejs/auth@0.58.0", "", { "dependencies": { "@absolutejs/linked-providers": "0.0.5", "@absolutejs/manifest": "^0.7.2", "@neondatabase/serverless": "1.0.0", "@sinclair/typebox": "^0.34.0", "citra": "0.29.10" }, "peerDependencies": { "@node-saml/node-saml": ">=5.1.0 <6", "@opentelemetry/api": ">=1.9.1 <2", "@simplewebauthn/browser": ">=13.3.0 <14", "@simplewebauthn/server": ">=13.3.2 <14", "drizzle-orm": ">=1.0.0-rc.4 <2", "elysia": ">=1.4.29 <2", "react": ">=18 <20", "solid-js": ">=1.9.14 <2", "svelte": ">=5.56.7 <6", "vue": ">=3.5.40 <4" }, "optionalPeers": ["@node-saml/node-saml", "@opentelemetry/api", "@simplewebauthn/browser", "@simplewebauthn/server", "react", "solid-js", "svelte", "vue"], "bin": { "absolute-auth": "dist/cli/migrate.js" } }, "sha512-Cx9rxaKEBb2WMHCiBfa7Fhf7OitNw+43IbxM47JBLAQ4/JUlDFYpkgvvLHZuzYx99IYBOxhOwJ0ptp1D9/L7AQ=="],
+    "@absolutejs/auth": ["@absolutejs/auth@0.59.2", "", { "dependencies": { "@absolutejs/linked-providers": "0.0.5", "@absolutejs/manifest": "^0.7.2", "@neondatabase/serverless": "1.0.0", "@sinclair/typebox": "^0.34.0", "citra": "0.29.10" }, "peerDependencies": { "@node-saml/node-saml": ">=5.1.0 <6", "@opentelemetry/api": ">=1.9.1 <2", "@simplewebauthn/browser": ">=13.3.0 <14", "@simplewebauthn/server": ">=13.3.2 <14", "drizzle-orm": ">=1.0.0-rc.4 <2", "elysia": ">=1.4.29 <2", "react": ">=18 <20", "solid-js": ">=1.9.14 <2", "svelte": ">=5.56.7 <6", "vue": ">=3.5.40 <4" }, "optionalPeers": ["@node-saml/node-saml", "@opentelemetry/api", "@simplewebauthn/browser", "@simplewebauthn/server", "react", "solid-js", "svelte", "vue"], "bin": { "absolute-auth": "dist/cli/migrate.js" } }, "sha512-BC2HlymKQSqN9I4MbeuhLnwn57+6p3+HOBpwqN2MDMI+XGTd5Zdl7HT3iQmuPIYagWPnyIqx4HObt5i1kUhJ3g=="],
 
     "@absolutejs/auth-twilio": ["@absolutejs/auth-twilio@workspace:twilio"],
 

@@ -51,8 +51,10 @@ createTwilioVerificationProvider({
 });
 ```
 
-The adapter always enables Twilio's SMS risk check and tags attempts with the
-non-PII auth subject and purpose for provider-side observability. Unknown Verify
+The adapter supports SMS, WhatsApp, and voice-call OTP channels, locale,
+rate-limit buckets, and tenant-to-Verify-Service routing. It always enables
+Twilio's risk check. By default tags contain only the purpose; `buildTags` is an
+explicit opt-in and should never return direct personal data. Unknown Verify
 statuses fail closed.
 
 ## Boundaries

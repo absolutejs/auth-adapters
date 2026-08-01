@@ -15,6 +15,7 @@ const PHONE = "+12025550100";
 const createClient = () => {
   const starts: Array<Record<string, unknown>> = [];
   const checks: Array<Record<string, unknown>> = [];
+  const cancels: Array<Record<string, unknown>> = [];
   let startStatus = "pending";
   let checkStatus = "approved";
   let checkError: unknown;
@@ -25,27 +26,35 @@ const createClient = () => {
       v2: {
         services: () => ({
           verificationChecks: {
-            create: async (input) => {
+            create: async (input: Record<string, unknown>) => {
               checks.push(input);
               if (checkError !== undefined) throw checkError;
               return { sid: `VE${"2".repeat(32)}`, status: checkStatus };
             },
           },
-          verifications: {
-            create: async (input) => {
-              starts.push(input);
-              if (startError !== undefined) throw startError;
-              return {
-                ...(startSid === undefined ? {} : { sid: startSid }),
-                status: startStatus,
-              };
+          verifications: Object.assign(
+            (verificationSid: string) => ({
+              update: async (request: Record<string, unknown>) => {
+                cancels.push({ ...request, verificationSid });
+              },
+            }),
+            {
+              create: async (input: Record<string, unknown>) => {
+                starts.push(input);
+                if (startError !== undefined) throw startError;
+                return {
+                  ...(startSid === undefined ? {} : { sid: startSid }),
+                  status: startStatus,
+                };
+              },
             },
-          },
+          ),
         }),
       },
     },
   };
   return {
+    cancels,
     checks,
     client,
     setCheckStatus: (status: string) => {
@@ -75,7 +84,7 @@ const input = {
 };
 
 describe("createTwilioVerificationProvider", () => {
-  test("starts a risk-checked verification with purpose tags and template", async () => {
+  test("starts a risk-checked verification without leaking the auth subject", async () => {
     const mock = createClient();
     const provider = createTwilioVerificationProvider({
       client: mock.client,
@@ -90,13 +99,42 @@ describe("createTwilioVerificationProvider", () => {
       {
         channel: "sms",
         riskCheck: "enable",
-        tags: JSON.stringify({ purpose: "mfa_challenge", subject: "user-1" }),
+        tags: JSON.stringify({ purpose: "mfa_challenge" }),
         templateSid: TEMPLATE_SID,
         to: PHONE,
       },
     ]);
     expect(result.reference).toMatch(/^VE/);
     expect(result.expiresAt).toBeGreaterThanOrEqual(before + 600_000);
+  });
+
+  test("supports channel, locale, rate-limit, tenant service routing, and cancellation", async () => {
+    const mock = createClient();
+    const tenantServiceSid = `VA${"4".repeat(32)}`;
+    const provider = createTwilioVerificationProvider({
+      client: mock.client,
+      resolveVerifyServiceSid: (request) =>
+        request.tenant === "tenant-2" ? tenantServiceSid : VERIFY_SID,
+      serviceTokenTtlMs: 600_000,
+      verifyServiceSid: VERIFY_SID,
+    });
+    const request = {
+      ...input,
+      channel: "whatsapp" as const,
+      locale: "es",
+      rateLimits: { ip_hash: "opaque-value" },
+      tenant: "tenant-2",
+    };
+    await provider.start(request);
+    await provider.cancel({ ...request, reference: VERIFICATION_SID });
+    expect(mock.starts[0]).toMatchObject({
+      channel: "whatsapp",
+      locale: "es",
+      rateLimits: { ip_hash: "opaque-value" },
+    });
+    expect(mock.cancels).toEqual([
+      { status: "canceled", verificationSid: VERIFICATION_SID },
+    ]);
   });
 
   test.each([
